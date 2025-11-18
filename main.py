@@ -158,6 +158,9 @@ def open_file():
         decrypted_path = exe_path.parent / "APP.BIN_out.bin"
         with open(decrypted_path, 'rb') as f:
             data = bytearray(f.read())
+            # Add 0x148 zero bytes at the start
+        padding = b'\x00' * 0x148
+        data = bytearray(padding) + data
         
         return True
 
@@ -203,7 +206,9 @@ def save_file():
             messagebox.showinfo("Success", f"Saved to {output_path}")
 
     elif MODE == 'PS4':
+        data=data[0x148:]
         with open(decrypted_path, 'wb') as file:
+            
             file.write(data)
 
         exe_path = base_dir / "ps4" / "ps4.exe"
@@ -1481,12 +1486,12 @@ class Nioh2Editor:
     def create_stats_tab(self):
         self.tab_stats = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_stats, text="Character Stats")
-        
+
         stats_frame = ttk.LabelFrame(self.tab_stats, text="Character Stats", padding=10)
         stats_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
+
         self.stat_entries = {}
-        
+
         stats = [
             ("Amrita", AMRITA_OFFSET, 8),
             ("Gold", GOLD_OFFSET, 8),
@@ -1499,26 +1504,43 @@ class Nioh2Editor:
             ("Skill", SKILL, 2),
             ("Dexterity", DEXTERITY, 2),
             ("Magic", MAGIC, 2),
-            ("ninjutsu", NINJITSU, 4),
-            ("ONMYO", ONMYO, 4),
-            ("SWORD", SWORD, 4),
-            ("DUAL_SWORD", DUAL_SWORD, 4),
-            ("AXE", AXE, 4),
-            ("KUSARIGAMA", KUSARIGAMA, 4),
-            ("ODACHI", ODACHI, 4),
-            ("TONFA", TONFA, 4),
-            ("HATCHET", HATCHET, 4),
-            
+            ("Ninjutsu", NINJITSU, 4),
+            ("Onmyo", ONMYO, 4),
+            ("Sword", SWORD, 4),
+            ("Dual Sword", DUAL_SWORD, 4),
+            ("Axe", AXE, 4),
+            ("Kusarigama", KUSARIGAMA, 4),
+            ("Odachi", ODACHI, 4),
+            ("Tonfa", TONFA, 4),
+            ("Hatchet", HATCHET, 4),
         ]
-        
-        for i, (name, offset, size) in enumerate(stats):
+
+        # Split into 2 columns
+        half = (len(stats) + 1) // 2
+        left_col = stats[:half]
+        right_col = stats[half:]
+
+        # LEFT column
+        for i, (name, offset, size) in enumerate(left_col):
             ttk.Label(stats_frame, text=name).grid(row=i, column=0, sticky="w", padx=10, pady=5)
             e = ttk.Entry(stats_frame, width=20)
             e.grid(row=i, column=1, sticky="w", padx=10, pady=5)
             self.stat_entries[name] = (e, offset, size)
-        
-        ttk.Button(stats_frame, text="Load Stats", command=self.update_stats_display).grid(row=len(stats), column=0, padx=10, pady=10)
-        ttk.Button(stats_frame, text="Save Stats", command=self.save_stats).grid(row=len(stats), column=1, padx=10, pady=10)
+
+        # RIGHT column
+        for i, (name, offset, size) in enumerate(right_col):
+            ttk.Label(stats_frame, text=name).grid(row=i, column=2, sticky="w", padx=20, pady=5)
+            e = ttk.Entry(stats_frame, width=20)
+            e.grid(row=i, column=3, sticky="w", padx=10, pady=5)
+            self.stat_entries[name] = (e, offset, size)
+
+        # Buttons at the bottom
+        button_frame = ttk.Frame(self.tab_stats)
+        button_frame.pack(pady=10)
+
+        ttk.Button(button_frame, text="Load Stats", command=self.update_stats_display).pack(side="left", padx=20)
+        ttk.Button(button_frame, text="Save Stats", command=self.save_stats).pack(side="left", padx=20)
+
     
     def update_stats_display(self):
         if data is None:
