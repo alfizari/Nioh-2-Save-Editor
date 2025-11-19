@@ -817,7 +817,179 @@ def write_scrolls_to_data():
 
 
 
-
+class SearchableCombobox(ttk.Frame):
+    def __init__(self, master=None, values=None, width=40, **kwargs):
+        super().__init__(master, **kwargs)
+        
+        self.full_values = values if values else []
+        self.filtered_values = self.full_values.copy()
+        
+        # Entry field
+        self.var = tk.StringVar()
+        self.entry = ttk.Entry(self, textvariable=self.var, width=width)
+        self.entry.pack(side="left", fill="x", expand=True)
+        
+        # Dropdown button
+        self.btn = ttk.Button(self, text="▼", width=2, command=self.toggle_dropdown)
+        self.btn.pack(side="right")
+        
+        # Listbox for dropdown (hidden by default)
+        self.listbox_frame = tk.Toplevel(self)
+        self.listbox_frame.withdraw()
+        self.listbox_frame.overrideredirect(True)
+        
+        self.listbox = tk.Listbox(self.listbox_frame, height=10, width=width)
+        self.listbox.pack(fill="both", expand=True)
+        
+        scrollbar = ttk.Scrollbar(self.listbox_frame, orient="vertical", command=self.listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.listbox.config(yscrollcommand=scrollbar.set)
+        
+        # Bindings
+        self.var.trace_add("write", self._on_type)
+        self.entry.bind("<Down>", self._on_arrow_down)
+        self.entry.bind("<Up>", self._on_arrow_up)
+        self.entry.bind("<Return>", self._on_return)
+        self.entry.bind("<Escape>", self._on_escape)
+        self.entry.bind("<FocusOut>", self._on_focus_out)
+        
+        self.listbox.bind("<<ListboxSelect>>", self._on_select)
+        self.listbox.bind("<Return>", self._on_return)
+        self.listbox.bind("<Escape>", self._on_escape)
+        self.listbox.bind("<Double-Button-1>", self._on_select)
+        
+        self.dropdown_visible = False
+        
+    def _on_type(self, *args):
+        """Filter values as user types"""
+        typed = self.var.get().lower()
+        
+        if typed == "":
+            self.filtered_values = self.full_values.copy()
+        else:
+            self.filtered_values = [v for v in self.full_values if typed in v.lower()]
+        
+        self._update_listbox()
+        
+        # Show dropdown automatically when typing
+        if not self.dropdown_visible and self.filtered_values:
+            self.show_dropdown()
+    
+    def _update_listbox(self):
+        """Update listbox with filtered values"""
+        self.listbox.delete(0, tk.END)
+        for value in self.filtered_values:
+            self.listbox.insert(tk.END, value)
+    
+    def show_dropdown(self):
+        """Show the dropdown listbox"""
+        if not self.filtered_values:
+            return
+            
+        self.dropdown_visible = True
+        
+        # Position the dropdown below the entry
+        x = self.entry.winfo_rootx()
+        y = self.entry.winfo_rooty() + self.entry.winfo_height()
+        width = self.entry.winfo_width() + self.btn.winfo_width()
+        
+        self.listbox_frame.geometry(f"{width}x200+{x}+{y}")
+        self.listbox_frame.deiconify()
+        self.listbox_frame.lift()
+        
+    def hide_dropdown(self):
+        """Hide the dropdown listbox"""
+        self.dropdown_visible = False
+        self.listbox_frame.withdraw()
+    
+    def toggle_dropdown(self):
+        """Toggle dropdown visibility"""
+        if self.dropdown_visible:
+            self.hide_dropdown()
+        else:
+            self.filtered_values = self.full_values.copy()
+            self._update_listbox()
+            self.show_dropdown()
+            self.entry.focus_set()
+    
+    def _on_arrow_down(self, event):
+        """Move selection down in listbox"""
+        if not self.dropdown_visible:
+            self.show_dropdown()
+        else:
+            current = self.listbox.curselection()
+            if not current:
+                self.listbox.selection_set(0)
+            elif current[0] < self.listbox.size() - 1:
+                self.listbox.selection_clear(current)
+                self.listbox.selection_set(current[0] + 1)
+                self.listbox.see(current[0] + 1)
+        return "break"
+    
+    def _on_arrow_up(self, event):
+        """Move selection up in listbox"""
+        if self.dropdown_visible:
+            current = self.listbox.curselection()
+            if current and current[0] > 0:
+                self.listbox.selection_clear(current)
+                self.listbox.selection_set(current[0] - 1)
+                self.listbox.see(current[0] - 1)
+        return "break"
+    
+    def _on_return(self, event):
+        """Select current item and close dropdown"""
+        if self.dropdown_visible:
+            current = self.listbox.curselection()
+            if current:
+                self.var.set(self.listbox.get(current[0]))
+            self.hide_dropdown()
+        return "break"
+    
+    def _on_escape(self, event):
+        """Close dropdown without selecting"""
+        self.hide_dropdown()
+        return "break"
+    
+    def _on_select(self, event):
+        """Handle selection from listbox"""
+        current = self.listbox.curselection()
+        if current:
+            self.var.set(self.listbox.get(current[0]))
+            self.hide_dropdown()
+    
+    def _on_focus_out(self, event):
+        """Hide dropdown when focus is lost"""
+        # Delay to allow click on listbox
+        self.after(200, lambda: self.hide_dropdown() if not self.listbox.focus_get() else None)
+    
+    def get(self):
+        """Get current value"""
+        return self.var.get()
+    
+    def set(self, value):
+        """Set current value"""
+        self.var.set(value)
+    
+    def configure(self, **kwargs):
+        """Configure the entry widget"""
+        if 'values' in kwargs:
+            self.full_values = list(kwargs['values'])
+            self.filtered_values = self.full_values.copy()
+            del kwargs['values']
+        if kwargs:
+            self.entry.configure(**kwargs)
+    
+    def __setitem__(self, key, value):
+        """Allow dict-style configuration"""
+        if key == 'values':
+            self.full_values = list(value)
+            self.filtered_values = self.full_values.copy()
+    
+    def __getitem__(self, key):
+        """Allow dict-style access"""
+        if key == 'values':
+            return self.full_values
+        return None
 # ==================== GUI ====================
 class Nioh2Editor:
     def __init__(self, root):
@@ -866,6 +1038,7 @@ class Nioh2Editor:
             self.update_stats_display()
             self.file_loaded = True
             messagebox.showinfo("Success", f"Loaded {MODE} save file\n{len([w for w in weapons if w['item_id_1'] != 0])} weapons\n{len([i for i in items if i['item_id_1'] != 0])} items\n{len([s for s in scrolls if s['item_id_1'] != 0])} scrolls")
+    
     
     # ==================== WEAPONS TAB ====================
     def create_weapons_tab(self):
@@ -1050,7 +1223,11 @@ class Nioh2Editor:
         
         for i in range(7):
             ttk.Label(effects_frame, text=f"Effect {i+1}:").grid(row=i, column=0, sticky="w", padx=5, pady=3)
-            combo = ttk.Combobox(effects_frame, width=40, values=effect_dropdown_list)
+            combo = SearchableCombobox(
+                effects_frame,
+                width=40,
+                values=effect_dropdown_list
+            )
             combo.grid(row=i, column=1, sticky="w", padx=5, pady=3)
             self.weapon_effect_combos.append(combo)
             
@@ -1428,7 +1605,11 @@ class Nioh2Editor:
         
         for i in range(7):
             ttk.Label(effects_frame, text=f"Effect {i+1}:").grid(row=i, column=0, sticky="w", padx=5, pady=3)
-            combo = ttk.Combobox(effects_frame, width=40, values=effect_dropdown_list)
+            combo = SearchableCombobox(
+            effects_frame,
+            width=40,
+            values=effect_dropdown_list
+        )
             combo.grid(row=i, column=1, sticky="w", padx=5, pady=3)
             self.scroll_effect_combos.append(combo)
             
