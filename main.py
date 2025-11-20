@@ -161,6 +161,10 @@ def open_file():
             # Add 0x148 zero bytes at the start
         padding = b'\x00' * 0x148
         data = bytearray(padding) + data
+        data[0x7B882+0x158] = 0
+        data[0x7B884+0x158] = 0
+        data[0x7B7E4+0x158] = 0
+        data[0xECF4A+0x158] = 0
         
         return True
 
