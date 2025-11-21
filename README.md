@@ -130,7 +130,8 @@ Describe the file, slot, and what you edited
 Include screenshots when possible
 
 ❤️ Credits
--Useful info from SW community: https://discord.gg/save-wizard
+-  Thanks to trxsh.bin for testing
+-  Useful info from SW community: https://discord.gg/save-wizard
 -  Nioh 2 items sheet used: https://docs.google.com/spreadsheets/d/1FWRe5tWXELL5C5rgvbfOC3sabHFFQ7Fy_q1jic_QEX4/edit?gid=70779755#gid=70779755
 -  credited to:
 Skiller#4741,
