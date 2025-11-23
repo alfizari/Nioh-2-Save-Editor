@@ -57,6 +57,7 @@ selected_item = None
 selected_item_index = None
 selected_scroll = None
 selected_scroll_index = None
+decrypted=False
 
 base_dir = Path(__file__).parent
 
@@ -99,7 +100,7 @@ def swap_endian_hex(val):
 
 # ==================== FILE OPERATIONS ====================
 def open_file():
-    global data, MODE, decrypted_path
+    global data, MODE, decrypted_path, decrypted
 
     file_path = filedialog.askopenfilename(
         title="Select Save File",
@@ -155,7 +156,10 @@ def open_file():
                 check=True
             )
         
-        decrypted_path = exe_path.parent / "APP.BIN_out.bin"
+            decrypted_path = exe_path.parent / "APP.BIN_out.bin"
+        else:
+            decrypted=True
+            decrypted_path = file_path
         with open(decrypted_path, 'rb') as f:
             data = bytearray(f.read())
             # Add 0x148 zero bytes at the start
@@ -211,6 +215,16 @@ def save_file():
 
     elif MODE == 'PS4':
         data=data[0x148:]
+        if decrypted:
+            output_path = filedialog.asksaveasfilename(
+                defaultextension=".BIN",
+                filetypes=[("Save Files", "*.BIN"), ("All Files", "*.*")]
+            )
+            with open(output_path, 'wb') as file:
+                file.write(data)
+            messagebox.showinfo("Success", f"Saved to {output_path}")
+            return
+        
         with open(decrypted_path, 'wb') as file:
             
             file.write(data)
