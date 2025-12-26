@@ -47,7 +47,10 @@ SCROLL_SLOTS = 248
 # ==================== GLOBALS ====================
 data = None
 MODE = None
+IMPORT_MODE=None
+import_data=None
 decrypted_path = None
+decrypted_path_import=None
 weapons = []
 items = []
 scrolls = []
@@ -58,6 +61,7 @@ selected_item_index = None
 selected_scroll = None
 selected_scroll_index = None
 decrypted=False
+decrypted_import=False
 
 base_dir = Path(__file__).parent
 
@@ -169,6 +173,86 @@ def open_file():
         data[0x7B884+0x158] = 0
         data[0x7B7E4+0x158] = 0
         data[0xECF4A+0x158] = 0
+        
+        return True
+
+    messagebox.showerror("Error", "Unknown file format. Please select SAVEDATA.BIN (PC) or APP.BIN (PS4)")
+    return False
+#import
+def open_file_import():
+    global import_data, IMPORT_MODE, decrypted_path_import, decrypted_import
+
+
+
+    
+
+    file_path = filedialog.askopenfilename(
+        title="Select Save File",
+        filetypes=[("Save Files", "*.BIN"), ("All Files", "*.*")]
+    )
+    if not file_path:
+        return False
+    
+    file_name = os.path.basename(file_path)
+
+    # PC Save
+    if file_name == 'SAVEDATA.BIN':
+        IMPORT_MODE = 'PC'
+        exe_path = base_dir / "pc_import" / "pc.exe"
+        
+        proc = subprocess.run(
+            [str(exe_path), file_path],
+            cwd=exe_path.parent,
+            input="\n",
+            text=True,
+            capture_output=True
+        )
+        
+        decrypted_path_import = exe_path.parent / "decr_SAVEDATA.BIN"
+        with open(decrypted_path_import, 'rb') as f:
+            import_data = bytearray(f.read())
+        
+        # Disable integrity checks
+        import_data[0x7B882+0x158] = 0
+        import_data[0x7B884+0x158] = 0
+        import_data[0x7B7E4+0x158] = 0
+        import_data[0xECF4A+0x158] = 0
+        
+        return True
+
+    # PS4 Save
+    if file_name == 'APP.BIN':
+        IMPORT_MODE = 'PS4'
+        exe_path = base_dir / "ps4_import" / "ps4.exe"
+        dst_path = exe_path.parent / "APP.BIN"
+
+        shutil.copy2(file_path, dst_path)
+
+        with open(dst_path, 'rb') as f:
+            magic_bytes = f.read(4)
+
+        if magic_bytes != b'\x00\x00\x00\x00':
+            subprocess.run(
+                [str(exe_path), str(dst_path)],
+                cwd=exe_path.parent,
+                input="\n",
+                text=True,
+                check=True
+            )
+        
+            decrypted_path_import = exe_path.parent / "APP.BIN_out.bin"
+        else:
+            decrypted_import=True
+            decrypted_path_import = file_path
+        with open(decrypted_path_import, 'rb') as f:
+            import_data = bytearray(f.read())
+            # Add 0x148 zero bytes at the start
+        padding = b'\x00' * 0x148
+        import_data = bytearray(padding) + import_data
+        import_data[0x7B882+0x158] = 0
+        import_data[0x7B884+0x158] = 0
+        import_data[0x7B7E4+0x158] = 0
+        import_data[0xECF4A+0x158] = 0
         
         return True
 
@@ -833,6 +917,22 @@ def write_scrolls_to_data():
         
         data[offset:offset+4] = write_le(scroll['extra_3'], 4)
 
+def import_save():
+    global data
+    open_file_import()
+
+    if not data:
+        messagebox.showerror("Error", "Please load your current save file first and then click import")
+        return
+
+    ask=messagebox.askyesno("Confirm", "This will replace your current character")
+    if ask:
+        data=data[:0x178] + import_data[0x178:]
+        if len(data) != 0x296F28:
+            messagebox.showerror('Importing Error', 'size missmatch ')
+        messagebox.showinfo("Success", "File imported correctly. When you load in, it will update the character ingame")
+    else:
+        return None
 
 
 class SearchableCombobox(ttk.Frame):
@@ -1029,6 +1129,10 @@ class Nioh2Editor:
         file_menu.add_command(label="Save File", command=save_file)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=root.quit)
+
+        import_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Import(PC/PS4)", menu=import_menu)
+        import_menu.add_command(label="Import Save", command=import_save)
         
         # Notebook
         self.notebook = ttk.Notebook(root)
