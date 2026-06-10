@@ -925,11 +925,18 @@ def import_save():
         messagebox.showerror("Error", "Please load your current save file first and then click import")
         return
 
-    ask=messagebox.askyesno("Confirm", "This will replace your current character")
+    ask = messagebox.askyesno("Confirm", "This will replace your current character")
     if ask:
-        data=data[:0x178] + import_data[0x178:]
+        data = data[:0x178] + import_data[0x178:]
         if len(data) != 0x296F28:
-            messagebox.showerror('Importing Error', 'size missmatch ')
+            messagebox.showerror('Importing Error', 'size mismatch')
+            return
+
+        # Re-parse inventory from the newly merged data
+        player_weapons()
+        player_items()
+        player_scroll()
+
         messagebox.showinfo("Success", "File imported correctly. When you load in, it will update the character ingame")
     else:
         return None
